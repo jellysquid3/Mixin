@@ -137,7 +137,7 @@ public class InjectorGroupInfo {
     /**
      * Members of this group
      */
-    private final List<InjectionInfo> members = new ArrayList<InjectionInfo>();
+    private final List<InjectionInfo.Counters> members = new ArrayList<InjectionInfo.Counters>();
     
     /**
      * True if this is the default group
@@ -182,15 +182,6 @@ public class InjectorGroupInfo {
     
     public int getMaxAllowed() {
         return Math.min(this.maxCallbackCount, Integer.MAX_VALUE);
-    }
-    
-    /**
-     * Get all members of this group as a read-only collection
-     * 
-     * @return read-only view of group members
-     */
-    public Collection<InjectionInfo> getMembers() {
-        return Collections.unmodifiableCollection(this.members);
     }
     
     /**
@@ -239,7 +230,7 @@ public class InjectorGroupInfo {
      * @param member injector to add
      * @return fluent interface
      */
-    public InjectorGroupInfo add(InjectionInfo member) {
+    public InjectorGroupInfo add(InjectionInfo.Counters member) {
         this.members.add(member);
         return this;
     }
@@ -257,7 +248,7 @@ public class InjectorGroupInfo {
         }
         
         int total = 0;
-        for (InjectionInfo member : this.members) {
+        for (InjectionInfo.Counters member : this.members) {
             total += member.getInjectedCallbackCount();
         }
         

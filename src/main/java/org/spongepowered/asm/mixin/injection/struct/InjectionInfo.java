@@ -79,7 +79,9 @@ import com.google.common.collect.ImmutableSet;
  * and allows the injection to be processed.
  */
 public abstract class InjectionInfo extends SpecialMethodInfo implements ISliceContext {
-    
+
+    private final Counters counters = new Counters();
+
     /**
      * Decoration for subclasses which indicates the injector annotation that
      * the subclass handles
@@ -244,11 +246,7 @@ public abstract class InjectionInfo extends SpecialMethodInfo implements ISliceC
      */
     private int maxCallbackCount = Integer.MAX_VALUE;
 
-    /**
-     * Actual number of injected callbacks
-     */
-    private int injectedCallbackCount = 0;
-    
+
     /**
      * Injection messages which are not severe enough to log when they occur,
      * but may be of interest if a <tt>require</tt> clause fails in order to
@@ -331,7 +329,7 @@ public abstract class InjectionInfo extends SpecialMethodInfo implements ISliceC
     }
 
     protected void parseRequirements() {
-        this.group = this.mixin.getInjectorGroups().parseGroup(this.method, this.mixin.getDefaultInjectorGroup()).add(this);
+        this.group = this.mixin.getInjectorGroups().parseGroup(this.method, this.mixin.getDefaultInjectorGroup()).add(this.counters);
         
         Integer expect = Annotations.<Integer>getValue(this.annotation, "expect");
         if (expect != null) {
@@ -398,20 +396,20 @@ public abstract class InjectionInfo extends SpecialMethodInfo implements ISliceC
         String description = this.getDescription();
         String refMapStatus = this.mixin.getReferenceMapper().getStatus();
         String extraInfo = this.getDynamicInfo() + this.getMessages();
-        if ((this.mixin.getOption(Option.DEBUG_INJECTORS) && this.injectedCallbackCount < this.expectedCallbackCount)) {
+        if ((this.mixin.getOption(Option.DEBUG_INJECTORS) && this.counters.getInjectedCallbackCount() < this.expectedCallbackCount)) {
             throw new InvalidInjectionException(this,
                     String.format("Injection validation failed: %s %s%s in %s expected %d invocation(s) but %d succeeded. Scanned %d target(s). %s%s",
-                            description, this.methodName, this.method.desc, this.mixin, this.expectedCallbackCount, this.injectedCallbackCount,
+                            description, this.methodName, this.method.desc, this.mixin, this.expectedCallbackCount, this.counters.getInjectedCallbackCount(),
                             this.targetCount, refMapStatus, extraInfo));
-        } else if (this.injectedCallbackCount < this.requiredCallbackCount) {
+        } else if (this.counters.getInjectedCallbackCount() < this.requiredCallbackCount) {
             throw new InjectionError(
                     String.format("Critical injection failure: %s %s%s in %s failed injection check, (%d/%d) succeeded. Scanned %d target(s). %s%s",
-                            description, this.methodName, this.method.desc, this.mixin, this.injectedCallbackCount, this.requiredCallbackCount,
+                            description, this.methodName, this.method.desc, this.mixin, this.counters.getInjectedCallbackCount(), this.requiredCallbackCount,
                             this.targetCount, refMapStatus, extraInfo));
-        } else if (this.injectedCallbackCount > this.maxCallbackCount) {
+        } else if (this.counters.getInjectedCallbackCount() > this.maxCallbackCount) {
             throw new InjectionError(
                     String.format("Critical injection failure: %s %s%s in %s failed injection check, %d succeeded of %d allowed.%s",
-                    description, this.methodName, this.method.desc, this.mixin, this.injectedCallbackCount, this.maxCallbackCount, extraInfo));
+                    description, this.methodName, this.method.desc, this.mixin, this.counters.getInjectedCallbackCount(), this.maxCallbackCount, extraInfo));
         }
     }
     
@@ -469,7 +467,7 @@ public abstract class InjectionInfo extends SpecialMethodInfo implements ISliceC
      * @return the injected callback count
      */
     public int getInjectedCallbackCount() {
-        return this.injectedCallbackCount;
+        return this.counters.getInjectedCallbackCount();
     }
 
     /**
@@ -493,7 +491,7 @@ public abstract class InjectionInfo extends SpecialMethodInfo implements ISliceC
      * @param handler callback handler being invoked
      */
     public void addCallbackInvocation(MethodNode handler) {
-        this.injectedCallbackCount++;
+        this.counters.addCallbackInvocation();
     }
     
     /**
@@ -733,6 +731,29 @@ public abstract class InjectionInfo extends SpecialMethodInfo implements ISliceC
     
     public static Set<Class<? extends Annotation>> getRegisteredAnnotations() {
         return ImmutableSet.<Class<? extends Annotation>>copyOf(InjectionInfo.registeredAnnotations);
+    }
+
+    public static class Counters {
+        /**
+         * Actual number of injected callbacks
+         */
+        private int injectedCallbackCount = 0;
+
+        /**
+         * Get the injected callback count
+         *
+         * @return the injected callback count
+         */
+        public int getInjectedCallbackCount() {
+            return this.injectedCallbackCount;
+        }
+
+        /**
+         * Increment the injected callback count
+         */
+        public void addCallbackInvocation() {
+            this.injectedCallbackCount++;
+        }
     }
 
 }
